@@ -1,11 +1,11 @@
 from flet import (
     ButtonStyle,
+    Colors,
     Column,
     Container,
     FilledButton,
     Text,
     View,
-    colors,
 )
 
 from flet_easy.datasy import Datasy
@@ -25,15 +25,15 @@ def page_404_fs(data: Datasy) -> View:
                             height=40,
                             on_click=data.go(data.route_init),
                             style=ButtonStyle(
-                                bgcolor=colors.RED_900,
-                                color=colors.WHITE,
+                                bgcolor=Colors.RED_900,
+                                color=Colors.WHITE,
                             ),
                         ),
                     ],
                     alignment="center",
                     horizontal_alignment="center",
                 ),
-                bgcolor=colors.BLACK12,
+                bgcolor=Colors.BLACK12,
                 padding=20,
                 border_radius=10,
             )

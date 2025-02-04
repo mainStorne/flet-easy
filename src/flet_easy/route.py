@@ -1,12 +1,13 @@
 import re
+from collections import deque
 from inspect import iscoroutinefunction
 from re import Pattern, compile, escape
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent, View
+from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent, View, ViewPopEvent
 
 from flet_easy.datasy import Datasy
-from flet_easy.exceptions import LoginRequiredError, MidlewareError, RouteError
+from flet_easy.exceptions import FunctionError, LoginRequiredError, MidlewareError, RouteError
 from flet_easy.extra import TYPE_PATTERNS, Msg, Redirect
 from flet_easy.inheritance import Keyboardsy, Resizesy, Viewsy
 from flet_easy.pagesy import Middleware, Pagesy
@@ -18,57 +19,40 @@ class FletEasyX:
 
     def __init__(
         self,
-        page: Page,
         route_prefix: str,
         route_init: str,
         route_login: str,
-        config_login: Callable[[Datasy], bool],
-        pages: List[Pagesy],
-        page_404: Pagesy,
-        view_data: Callable[[Datasy], Viewsy],
-        view_config: Callable[[Datasy], None],
-        config_event_handler: Callable[[Datasy], None],
         on_resize: bool,
         on_Keyboard: bool,
         secret_key: str,
         auto_logout: bool,
-        middleware: Middleware,
     ):
-        self.__page = page
         self.__page_on_keyboard = Keyboardsy()
-        self.__page_on_resize = Resizesy(self.__page)
 
+        self.__route_prefix = route_prefix
         self.__route_init = route_init
         self.__route_login = route_login
-        self.__config_login = config_login
         self.__on_resize = on_resize
         self.__on_Keyboard = on_Keyboard
-        self.__middlewares = middleware
-        # ----
-        self.__pages = pages
+
+        self._pages = deque()
         self.__view_404 = page_404_fs
-        self.__page_404 = page_404
-        self.__view_data = view_data
-        self.__view_config = view_config
-        self.__config_event = config_event_handler
+
+        self.__page: Page = None
+        self._page_404: Pagesy = None
+        self._view_data: Callable[[Datasy], Viewsy] = None
+        self._config_login: Callable[[Datasy], bool] = None
+        self._view_config: Callable[[Datasy], None] = None
+        self._config_event: Callable[[Datasy], None] = None
         self.__pagesy: Pagesy = None
+        self._middlewares: Middleware = None
+        self.__data: Datasy = None
 
-        self.__data = Datasy(
-            page=self.__page,
-            route_prefix="" if route_prefix is None else route_prefix,
-            route_init=self.__route_init,
-            route_login=self.__route_login,
-            secret_key=secret_key,
-            auto_logout=auto_logout,
-            page_on_keyboard=self.__page_on_keyboard,
-            page_on_resize=self.__page_on_resize,
-            go=self._go,
-        )
-        self.__data.view = self.__view_data_config() if self.__view_data is not None else None
-        if self.__route_login is not None:
-            self.__data._create_login()
+        self.__auto_logout = auto_logout
+        self.__secret_key = secret_key
 
-    # ----------- Supports async
+    # -------- ---------[Handling 'flet' event]----------
+
     def __route_change(self, e: RouteChangeEvent):
         if self.__pagesy is None:
             if e.route == "/" and self.__route_init != "/":
@@ -79,7 +63,7 @@ class FletEasyX:
             self._view_append(e.route, self.__pagesy)
             self.__pagesy = None
 
-    def __view_pop(self, e):
+    def __view_pop(self, e: ViewPopEvent):
         if len(self.__data.history_routes) > 1:
             self.__data.history_routes.pop()
             self._go(self.__data.history_routes.pop())
@@ -92,20 +76,6 @@ class FletEasyX:
     def __page_resize(self, e: ControlEvent):
         self.__page_on_resize.e = e
 
-    def __add_configuration_start(self):
-        """Add general settings to the pages."""
-        if self.__view_config:
-            if iscoroutinefunction(self.__view_config):
-                self.__page.run_task(self.__view_config, self.__page).result()
-            else:
-                self.__view_config(self.__page)
-
-        if self.__config_event:
-            if iscoroutinefunction(self.__config_event):
-                self.__page.run_task(self.__config_event, self.__data).result()
-            else:
-                self.__config_event(self.__data)
-
     def __disconnect(self, e):
         if self.__data._login_done and self.__page.web:
             self.__page.pubsub.send_others_on_topic(
@@ -113,9 +83,65 @@ class FletEasyX:
                 Msg("updateLoginSessions", value=self.__data._login_done),
             )
 
-    # -- initialization
+    # --------------[End of 'flet' event]------------
 
-    def run(self):
+    # ------------ [ configuration when initializing 'flet' ]
+
+    def __check_async(
+        self, func: Callable[[Datasy | Page], Any], *args, result: bool = False, **kwargs
+    ):
+        """Check if the function is async or not"""
+        if func is None:
+            assert FunctionError("Function is None:")
+
+        if iscoroutinefunction(func):
+            res = self.__page.run_task(func, *args, **kwargs)
+
+            if result:
+                return res.result(5)
+            else:
+                return res
+        else:
+            return func(*args, **kwargs)
+
+    def __config_datasy(self):
+        """configure datasy"""
+        self.__page_on_resize = Resizesy(self.__page)
+
+        self.__data = Datasy(
+            page=self.__page,
+            route_prefix="" if self.__route_prefix is None else self.__route_prefix,
+            route_init=self.__route_init,
+            route_login=self.__route_login,
+            secret_key=self.__secret_key,
+            auto_logout=self.__auto_logout,
+            page_on_keyboard=self.__page_on_keyboard,
+            page_on_resize=self.__page_on_resize,
+            go=self._go,
+        )
+
+        """Add the `View` configuration, to reuse on every page."""
+        self.__data.view = self.__check_async(self._view_data, self.__data, result=True)
+
+        if self.__route_login is not None:
+            self.__data._create_login()
+
+    def __add_configuration_start(self):
+        """Add general settings to the pages."""
+        self.__config_datasy()
+
+        """ Add view configuration """
+        self.__check_async(self._view_config, self.__page)
+
+        """ Add configuration event """
+        self.__check_async(self._config_event, self.__data)
+
+    # ------------[Initialization]----------
+
+    def _run(self, page: Page):
+        self.__page = page
+
+        """ configure the route init """
         if self.__route_init != "/" and self.__page.route == "/":
             self.__page.route = self.__route_init
 
@@ -137,34 +163,26 @@ class FletEasyX:
         self._go(self.__page.route, use_reload=True)
 
     # ---------------------------[Route controller]-------------------------------------
-    def __view_data_config(self):
-        """Add the `View` configuration, to reuse on every page."""
-        if iscoroutinefunction(self.__view_data):
-            return self.__page.run_task(self.__view_data, self.__data).result()
-        else:
-            return self.__view_data(self.__data)
 
     def _view_append(self, route: str, pagesy: Pagesy):
         """Add a new page and update it."""
 
+        # To make the page change faster.
         self.__page.views.clear()
 
+        # to show back icon when using appBar.
         if not pagesy.clear and len(self.__data.history_routes) > 0:
             self.__page.views.append(View())
 
+        # Add View to the page.
         if callable(pagesy.view) and not isinstance(pagesy.view, type):
-            view = (
-                self.__page.run_task(pagesy.view, self.__data, **self.__data.url_params).result()
-                if iscoroutinefunction(pagesy.view)
-                else pagesy.view(self.__data, **self.__data.url_params)
+            view = self.__check_async(
+                pagesy.view, self.__data, **self.__data.url_params, result=True
             )
         elif isinstance(pagesy.view, type):
             view_class = pagesy.view(self.__data, **self.__data.url_params)
-            view = (
-                self.__page.run_task(view_class.build).result()
-                if iscoroutinefunction(view_class.build)
-                else view_class.build()
-            )
+            view = self.__check_async(view_class.build, result=True)
+
         view.route = route
         self.__page.views.append(view)
         self.__data.history_routes.append(route)
@@ -194,11 +212,8 @@ class FletEasyX:
 
         for middleware in middleware_list:
             self.__reload_datasy(pagesy, url_params)
-            res_middleware = (
-                self.__page.run_task(middleware, self.__data).result()
-                if iscoroutinefunction(middleware)
-                else middleware(self.__data)
-            )
+            res_middleware = self.__check_async(middleware, self.__data, result=True)
+
             if res_middleware is None:
                 continue
 
@@ -239,60 +254,37 @@ class FletEasyX:
         return True
 
     def _go(self, route: str, use_route_change: bool = False, use_reload: bool = False):
+        """Go to the route, if the route is not found, it will return a 404 page."""
         pg_404 = True
 
-        for page in self.__pages:
+        for page in self._pages:
             route_math = self._verify_url(page.route, route, page.custom_params)
             if route_math is not None:
                 pg_404 = False
                 try:
                     if page.protected_route:
-                        assert (
-                            self.__route_login is not None
-                        ), "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
-
-                        if iscoroutinefunction(self.__config_login):
-                            try:
-                                auth = self.__page.run_task(
-                                    self.__config_login, self.__data
-                                ).result()
-                            except Exception as e:
-                                raise LoginRequiredError(
-                                    "Use async methods in the function decorated by 'login', to avoid conflicts.",
-                                    e,
-                                )
-                        else:
-                            auth = self.__config_login(self.__data)
-
-                        if auth:
-                            self.__reload_datasy(page, route_math)
-
-                            if use_route_change:
-                                self._view_append(route, page)
-
-                            else:
-                                if self.__page.route != route or use_reload:
-                                    self.__pagesy = page
-                                self.__page.go(route)
-
-                        else:
-                            self._go(self.__route_login)
-
+                        self.__check_protected_route(
+                            page,
+                            route,
+                            route_math,
+                            use_route_change,
+                            use_reload,
+                        )
                         break
                     else:
                         if self.__run_middlewares(
-                            route=route,
-                            middleware=self.__middlewares,
-                            url_params=route_math,
-                            pagesy=page,
-                            use_route_change=use_route_change,
-                            use_reload=use_reload,
+                            route,
+                            self._middlewares,
+                            route_math,
+                            page,
+                            use_route_change,
+                            use_reload,
                         ):
                             break
                 except Exception as e:
                     raise RouteError(e)
         if pg_404:
-            page = self.__page_404 or Pagesy(route, self.__view_404, "Flet-Easy 404")
+            page = self._page_404 or Pagesy(route, self.__view_404, "Flet-Easy 404")
 
             if page.route is None:
                 page.route = route
@@ -305,6 +297,36 @@ class FletEasyX:
                 if self.__page.route != route or use_reload:
                     self.__pagesy = page
                 self.__page.go(page.route)
+
+    def __check_protected_route(
+        self, page: Pagesy, route: str, route_math: str, use_route_change: bool, use_reload: bool
+    ):
+        """Check if the route is protected and if it is, check if the user is logged in."""
+        assert self.__route_login is not None, (
+            "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
+        )
+
+        try:
+            auth = self.__check_async(self._config_login, self.__data, result=True)
+        except Exception as e:
+            raise LoginRequiredError(
+                "Use async methods in the function decorated by 'login', to avoid conflicts.",
+                e,
+            )
+
+        if auth:
+            self.__reload_datasy(page, route_math)
+
+            if use_route_change:
+                self._view_append(route, page)
+
+            else:
+                if self.__page.route != route or use_reload:
+                    self.__pagesy = page
+                self.__page.go(route)
+
+        else:
+            self._go(self.__route_login)
 
     @classmethod
     def __compile_pattern(cls, pattern_parts: list[str]) -> Pattern[str]:

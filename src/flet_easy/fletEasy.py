@@ -7,13 +7,10 @@ except ImportError:
         'Install "flet" the latest version available -> pip install flet[all] --upgrade.'
     )
 
-from collections import deque
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from warnings import warn
-
-from flet import View
 
 from flet_easy.auto_route import automatic_routing
 from flet_easy.datasy import Datasy
@@ -38,7 +35,7 @@ def page(
     )
 
 
-class FletEasy:
+class FletEasy(FletEasyX):
     """
     we create the app object, in it you can configure:
 
@@ -139,56 +136,32 @@ class FletEasy:
         path_views: Path = None,
     ):
         self.__route_prefix = route_prefix
-        self.__route_init = route_init
-        self.__route_login = route_login
-        self.__on_resize = on_resize
-        self.__on_Keyboard = on_Keyboard
-        self.__secret_key = secret_key
-        self.__auto_logout = auto_logout
-        self.__config_login: Callable[[Datasy], View] = None
-        # ----
-        self.__pages = deque()
-        self.__page_404: Pagesy = None
-        self.__view_data: Viewsy = None
-        self.__view_config: Callable[[Datasy], None] = None
-        self.__config_event: Callable[[Datasy], None] = None
-        self.__middlewares: Middleware = None
         FletEasy.__self = self
+
+        super().__init__(
+            route_prefix=self.__route_prefix,
+            route_init=route_init,
+            route_login=route_login,
+            on_resize=on_resize,
+            on_Keyboard=on_Keyboard,
+            secret_key=secret_key,
+            auto_logout=auto_logout,
+        )
 
         if path_views is not None:
             self.add_pages(automatic_routing(path_views))
 
     # -------------------------------------------------------------------
-    # -- initialize / Supports async
-    def __run(self, page: Page):
-        """Initialize FletEasy configuration"""
-        return FletEasyX(
-            page=page,
-            route_prefix=self.__route_prefix,
-            route_init=self.__route_init,
-            route_login=self.__route_login,
-            config_login=self.__config_login,
-            pages=self.__pages,
-            page_404=self.__page_404,
-            view_data=self.__view_data,
-            view_config=self.__view_config,
-            config_event_handler=self.__config_event,
-            on_resize=self.__on_resize,
-            on_Keyboard=self.__on_Keyboard,
-            secret_key=self.__secret_key,
-            auto_logout=self.__auto_logout,
-            middleware=self.__middlewares,
-        ).run()
 
     def start(self, page: Page):
         """Start the app in the main function"""
-        return self.__run(page)
+        return self._run(page)
 
     def get_app(self):
         """Return the app function main"""
 
         def main(page: Page):
-            self.__run(page)
+            self._run(page)
 
         return main
 
@@ -209,7 +182,7 @@ class FletEasy:
         """* Execute the app. | Soporta async, fastapi y export_asgi_app."""
 
         def main(page: Page):
-            self.__run(page)
+            self._run(page)
 
         if fastapi:
             warn(
@@ -257,9 +230,9 @@ class FletEasy:
                 )
 
             if value == "page_404":
-                self.__page_404 = Pagesy(route, func, data.get("title"), data.get("page_clear"))
+                self._page_404 = Pagesy(route, func, data.get("title"), data.get("page_clear"))
             elif value == "page":
-                self.__pages.append(
+                self._pages.append(
                     Pagesy(
                         route=route,
                         view=func,
@@ -287,9 +260,9 @@ class FletEasy:
         try:
             for page in group_pages:
                 if self.__route_prefix:
-                    self.__pages.extend(page._add_pages(self.__route_prefix))
+                    self._pages.extend(page._add_pages(self.__route_prefix))
                 else:
-                    self.__pages.extend(page._add_pages())
+                    self._pages.extend(page._add_pages())
         except Exception as e:
             raise AddPagesError("Add pages error in route: ", e)
 
@@ -448,7 +421,8 @@ class FletEasy:
             )
         ```
         """
-        self.__view_data = func
+        self._view_data = func
+        return func
 
     def config(self, func: Callable[[Datasy], None]):
         """Decorator to add a custom configuration to the app:
@@ -475,7 +449,8 @@ class FletEasy:
             page.theme = theme
         ```
         """
-        self.__view_config = func
+        self._view_config = func
+        return func
 
     def login(self, func: Callable[[Datasy], bool]):
         """Decorator to add a login configuration to the app (protected_route):
@@ -499,7 +474,8 @@ class FletEasy:
             return value
         ```
         """
-        self.__config_login = func
+        self._config_login = func
+        return func
 
     def config_event_handler(self, func: Callable[[Datasy], None]):
         """Decorator to add charter event settings -> https://flet.dev/docs/controls/page#events
@@ -515,7 +491,8 @@ class FletEasy:
         ```
         """
 
-        self.__config_event = func
+        self._config_event = func
+        return func
 
     def add_routes(self, add_views: List[Pagesy]):
         """-> Add routes without the use of decorators.
@@ -541,8 +518,8 @@ class FletEasy:
             if self.__route_prefix:
                 page.route = self.__route_prefix + page.route
 
-            self.__pages.append(page)
+            self._pages.append(page)
 
     def add_middleware(self, middleware: List[Callable[[Datasy], Optional[Redirect]]]):
         """The function that will act as middleware will receive as a single mandatory parameter `data : Datasy` and its structure or content may vary depending on the context and the specific requirements of the middleware."""
-        self.__middlewares = middleware
+        self._middlewares = middleware

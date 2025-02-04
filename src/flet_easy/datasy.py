@@ -282,12 +282,12 @@ class Datasy:
         sleep: int = 1,
     ) -> str | None:
         if time_expiry:
-            assert isinstance(
-                value, Dict
-            ), "Use a dict in login method values or don't use time_expiry."
-            assert (
-                self.__secret_key is not None
-            ), "Set the secret_key in the FletEasy class parameter or don't use time_expiry."
+            assert isinstance(value, Dict), (
+                "Use a dict in login method values or don't use time_expiry."
+            )
+            assert self.__secret_key is not None, (
+                "Set the secret_key in the FletEasy class parameter or don't use time_expiry."
+            )
 
         if self.__secret_key:
             evaluate_secret_key(self)

@@ -44,3 +44,9 @@ class AddPagesError(FletEasyError):
     """Add pages error in route"""
 
     pass
+
+
+class FunctionError(FletEasyError):
+    """Function error | is not a function"""
+
+    pass
