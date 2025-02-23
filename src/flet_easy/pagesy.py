@@ -1,19 +1,16 @@
 from collections import deque
-from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional
-
-from flet import View
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from flet_easy.datasy import Datasy
-from flet_easy.extra import Redirect
+from flet_easy.middleware import (
+    Middleware,
+    MiddlewareHandler,
+    MiddlewareRequest,
+    ViewHandler,
+)
 
-MiddlewareHandler = Callable[[Datasy], Optional[Redirect]]
-Middleware = List[MiddlewareHandler]
-ViewHandler = Callable[[Datasy], View]
 
-
-@dataclass
 class Pagesy:
     """To add pages, it requires the following parameters:
     * `route`: text string of the url, for example(`'/task'`).
@@ -31,22 +28,92 @@ class Pagesy:
     ```
     """
 
-    route: str
-    view: ViewHandler
-    title: str = None
-    clear: bool = False
-    share_data: bool = False
-    protected_route: bool = False
-    custom_params: Dict[str, Callable[[], bool]] = None
-    middleware: Middleware = None
+    def __init__(
+        self,
+        route: str,
+        view: ViewHandler,
+        title: Optional[str] = None,
+        clear: bool = False,
+        share_data: bool = False,
+        protected_route: bool = False,
+        custom_params: Optional[Dict[str, Callable[[], bool]]] = None,
+        middleware: Optional[
+            List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+        ] = None,
+    ):
+        self.route = route
+        self.view = view
+        self.title = title
+        self.clear = clear
+        self.share_data = share_data
+        self.protected_route = protected_route
+        self.custom_params = custom_params
+        self.middleware = middleware
+        self._middlewares_request: deque[MiddlewareRequest] = deque()
+
+    def _valid_middlewares_request(self) -> bool:
+        if len(self._middlewares_request) != 0:
+            return True
+
+    def _process_middleware(
+        self, middleware: Union[MiddlewareRequest, MiddlewareHandler], data: Datasy
+    ) -> None:
+        """Process and validate middleware handlers."""
+
+        if isinstance(middleware, type):
+            if issubclass(middleware, MiddlewareRequest):
+                middleware.data = data
+                middleware_instance = middleware()
+
+                self._middlewares_request.append(middleware_instance)
+                self.middleware.append(middleware_instance)
+            else:
+                raise TypeError(
+                    f"Class '{middleware.__name__}' must inherit from MiddlewareRequest class",
+                )
+        else:
+            self.middleware.append(middleware)
+
+    def _check_middleware(self, middleware: Middleware, data: Datasy) -> None:
+        if middleware is None and self.middleware is None:
+            return
+
+        if middleware:
+            _middleware = deque()
+
+            if self.middleware is not None:
+                if isinstance(self.middleware, list):
+                    _middleware.extend(self.middleware)
+                    self.middleware.clear()
+                else:
+                    _middleware.append(self.middleware)
+                    self.middleware = deque()
+
+            else:
+                self.middleware = deque()
+
+            _middleware.extend(middleware if isinstance(middleware, list) else [middleware])
+
+            for m in _middleware:
+                try:
+                    self._process_middleware(m, data)
+
+                except (TypeError, AssertionError) as e:
+                    raise ValueError(f"Invalid middleware configuration: {str(e)}")
+        else:
+            if not isinstance(self.middleware, list):
+                self.middleware = [self.middleware]
 
 
 class AddPagesy:
-    """Creates an object to then add to the list of the `add_routes` method of the `FletEasy` class.
+    """
+    Creates an object to then add to the list of the `add_routes` method of the `FletEasy` class.
     -> Requires the parameter:
-    * route_prefix: text string that will bind to the url of the `page` decorator, example(`/users`) this will encompass all urls of this class. (optional)
+    - **route_prefix:** text string that will bind to the url of the `page` decorator, example(`/users`) this will encompass all urls of this class. (optional)
+    - **middleware:** list of middlewares to be added to the page. (optional)
 
-    Example:
+    **Example:**
+
     ```python
     users = fs.AddPagesy(route_prefix="/user")
 
@@ -89,104 +156,67 @@ class AddPagesy:
 
     """
 
-    def __init__(self, route_prefix: str = None):
-        self.route_prefix = route_prefix
-        self.__pages = deque()
+    def __init__(
+        self,
+        route_prefix: Optional[str] = None,
+        middleware: Optional[
+            List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+        ] = None,
+    ):
+        self.route_prefix = route_prefix.rstrip("/") if route_prefix else None
+        self.middleware = middleware
+        self.__pages: deque[Pagesy] = deque()
 
-    def __decorator(self, data: Dict = None):
-        def decorator(func: Callable):
+    def __build_route(self, route: str) -> str:
+        """Build complete route with prefix."""
+        if not self.route_prefix:
+            return route
+        if route == "/":
+            return self.route_prefix
+        return self.route_prefix + route
+
+    def page(
+        self,
+        route: str,
+        title: Optional[str] = None,
+        page_clear: bool = False,
+        share_data: bool = False,
+        protected_route: bool = False,
+        custom_params: Optional[Dict[str, Any]] = None,
+        middleware: Optional[
+            List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+        ] = None,
+    ) -> Callable:
+        """Decorator for adding pages with configuration."""
+
+        def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            route = (
-                (
-                    self.route_prefix
-                    if data.get("route") == "/"
-                    else self.route_prefix + data.get("route")
-                )
-                if self.route_prefix
-                else data.get("route")
-            )
-
             self.__pages.append(
                 Pagesy(
-                    route=route,
+                    route=self.__build_route(route),
                     view=func,
-                    title=data.get("title"),
-                    clear=data.get("page_clear"),
-                    share_data=data.get("share_data"),
-                    protected_route=data.get("protected_route"),
-                    custom_params=data.get("custom_params"),
-                    middleware=data.get("middleware"),
+                    title=title,
+                    clear=page_clear,
+                    share_data=share_data,
+                    protected_route=protected_route,
+                    custom_params=custom_params,
+                    middleware=middleware,
                 )
             )
             return wrapper
 
         return decorator
 
-    def page(
-        self,
-        route: str,
-        title: str = None,
-        page_clear: bool = False,
-        share_data: bool = False,
-        protected_route: bool = False,
-        custom_params: Dict[str, Any] = None,
-        middleware: Middleware = None,
-    ):
-        """Decorator to add a new page to the app, you need the following parameters:
-        * route: text string of the url, for example(`'/counter'`).
-        * `title` : Define the title of the page. (optional).
-        * clear: Removes the pages from the `page.views` list of flet. (optional)
-        * `share_data` : It is a boolean value, which is useful if you want to share data between pages, in a more restricted way. (optional)
-        * protected_route: Protects the route of the page, according to the configuration of the `login` decorator of the `FletEasy` class. (optional)
-        * custom_params: To add validation of parameters in the custom url using a list, where the key is the name of the parameter validation and the value is the custom function that must report a boolean value.
-        * `middleware` : It acts as an intermediary between different software components, intercepting and processing requests and responses. They allow adding functionalities to an application in a flexible and modular way. (optional)
+    def _add_pages(self, data: Datasy, route: Optional[str] = None) -> deque[Pagesy]:
+        """Add pages with optional route prefix override."""
 
-        -> The decorated function must receive a parameter, for example `data:fs.Datasy`.
+        for page in self.__pages:
+            page._check_middleware(self.middleware, data)
 
-        Example:
-        ```python
-        import flet as ft
-        import flet_easy as fs
+            if route:
+                page.route = route if page.route == "/" else route + page.route
 
-        counter = fs.AddPagesy(route_prefix="/counter")
-
-
-        @counter.page("/", title="Counter")
-        async def counter_page(data: fs.Datasy):
-            view = data.view
-
-            view.appbar.title = ft.Text("Counter")
-
-            return ft.View(
-                route="/counter",
-                controls=[
-                    ft.Text("Counter"),
-                ],
-                appbar=view.appbar,
-                vertical_alignment=view.vertical_alignment,
-                horizontal_alignment=view.horizontal_alignment,
-            )
-        ```
-        """
-        data = {
-            "route": route,
-            "title": title,
-            "page_clear": page_clear,
-            "share_data": share_data,
-            "protected_route": protected_route,
-            "custom_params": custom_params,
-            "middleware": middleware,
-        }
-        return self.__decorator(data)
-
-    def _add_pages(self, route: str = None) -> deque:
-        if route:
-            for page in self.__pages:
-                if page.route == "/":
-                    page.route = route
-                else:
-                    page.route = route + page.route
         return self.__pages

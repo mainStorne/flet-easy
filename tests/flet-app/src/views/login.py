@@ -10,7 +10,7 @@ def login_check(data: fs.Datasy):
     print("Loading the page Login!")
 
 
-@login.page("/login", title="Login", middleware=[login_check])
+@login.page("/login", title="Login", middleware=login_check)
 async def login_request(data: fs.Datasy):
     return ft.View(
         controls=[

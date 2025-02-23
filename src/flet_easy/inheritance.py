@@ -111,7 +111,7 @@ class Resizesy:
     ```
     """
 
-    def __init__(self, page: Page = None) -> None:
+    def __init__(self, page: Page) -> None:
         self.__page = page
         self.__height: float = page.height
         self.__width: float = page.width

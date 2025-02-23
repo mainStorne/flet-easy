@@ -49,25 +49,23 @@ class Datasy:
 
     def __init__(
         self,
-        page: Page,
         route_prefix: str,
         route_init: str,
         route_login: str,
         secret_key: str,
         auto_logout: bool,
         page_on_keyboard: Keyboardsy,
-        page_on_resize: Resizesy,
         go: Callable[[str], None] = None,
     ) -> None:
-        self.__page: Page = page
+        self.__page: Page = None
         self.__url_params: Dict[str, Any] = None
         self.__view: Viewsy = None
         self.__route_prefix = route_prefix
         self.__route_init = route_init
         self.__route_login = route_login
-        self.__share = SessionStorageEdit(self.__page)
+        self.__share = None
         self.__on_keyboard_event = page_on_keyboard
-        self.__on_resize = page_on_resize
+        self.__on_resize: Resizesy = None
         self.__route: str = None
         self.__go = go
         self.__history_routes: deque[str] = deque()
@@ -85,6 +83,7 @@ class Datasy:
     @page.setter
     def page(self, page: object):
         self.__page = page
+        self.__share = SessionStorageEdit(page)
 
     @property
     def history_routes(self):

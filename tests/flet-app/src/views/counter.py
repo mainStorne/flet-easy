@@ -3,9 +3,12 @@ from components import Counter, Custom, Drawer
 
 import flet_easy as fs
 
-counter = fs.AddPagesy(
-    route_prefix="/counter",
-)
+
+def message_counter(data: fs.Datasy):
+    print("+ Message counter")
+
+
+counter = fs.AddPagesy(route_prefix="/counter", middleware=[message_counter])
 
 
 async def check_params(data: fs.Datasy):

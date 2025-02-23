@@ -10,4 +10,4 @@ from flet_easy.inheritance import (
     Viewsy,
 )
 from flet_easy.jwt import EasyKey, decode, decode_async
-from flet_easy.pagesy import AddPagesy, Pagesy
+from flet_easy.pagesy import AddPagesy, Pagesy, MiddlewareRequest

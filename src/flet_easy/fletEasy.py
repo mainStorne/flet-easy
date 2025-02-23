@@ -17,7 +17,8 @@ from flet_easy.datasy import Datasy
 from flet_easy.extra import Redirect
 from flet_easy.extrasJwt import SecretKey
 from flet_easy.inheritance import Viewsy
-from flet_easy.pagesy import AddPagesy, Middleware, Pagesy
+from flet_easy.middleware import MiddlewareHandler, MiddlewareRequest
+from flet_easy.pagesy import AddPagesy, Pagesy
 from flet_easy.route import FletEasyX
 
 
@@ -28,7 +29,9 @@ def page(
     share_data: bool = False,
     protected_route: bool = False,
     custom_params: Dict[str, Any] = None,
-    middleware: Middleware = None,
+    middleware: Optional[
+        List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+    ] = None,
 ):
     return FletEasy.page(
         route, title, page_clear, share_data, protected_route, custom_params, middleware
@@ -136,6 +139,7 @@ class FletEasy(FletEasyX):
         path_views: Path = None,
     ):
         self.__route_prefix = route_prefix
+        self.__path_views = path_views
         FletEasy.__self = self
 
         super().__init__(
@@ -148,20 +152,25 @@ class FletEasy(FletEasyX):
             auto_logout=auto_logout,
         )
 
-        if path_views is not None:
-            self.add_pages(automatic_routing(path_views))
-
     # -------------------------------------------------------------------
+    def __pre_config(self, page: Page):
+        """config before run"""
+        self._add_configuration_start(page)
+
+        if self.__path_views is not None:
+            self.add_pages(automatic_routing(self.__path_views))
+
+        self._run()
 
     def start(self, page: Page):
         """Start the app in the main function"""
-        return self._run(page)
+        self.__pre_config(page)
 
     def get_app(self):
         """Return the app function main"""
 
         def main(page: Page):
-            self._run(page)
+            self.__pre_config(page)
 
         return main
 
@@ -182,7 +191,7 @@ class FletEasy(FletEasyX):
         """* Execute the app. | Soporta async, fastapi y export_asgi_app."""
 
         def main(page: Page):
-            self._run(page)
+            self.__pre_config(page)
 
         if fastapi:
             warn(
@@ -218,16 +227,13 @@ class FletEasy(FletEasyX):
             def wrapper(data, *args, **kwargs):
                 return func(data, *args, **kwargs)
 
-            if data:
-                route = (
-                    (
-                        self.__route_prefix
-                        if data.get("route") == "/"
-                        else self.__route_prefix + data.get("route")
-                    )
-                    if self.__route_prefix and data.get("route")
-                    else data.get("route")
-                )
+            route = data.get("route")
+
+            route = (
+                (self.__route_prefix if route == "/" else self.__route_prefix + route)
+                if self.__route_prefix and route
+                else route
+            )
 
             if value == "page_404":
                 self._page_404 = Pagesy(route, func, data.get("title"), data.get("page_clear"))
@@ -260,9 +266,9 @@ class FletEasy(FletEasyX):
         try:
             for page in group_pages:
                 if self.__route_prefix:
-                    self._pages.extend(page._add_pages(self.__route_prefix))
+                    self._pages.extend(page._add_pages(self._data, self.__route_prefix))
                 else:
-                    self._pages.extend(page._add_pages())
+                    self._pages.extend(page._add_pages(self._data))
         except Exception as e:
             raise AddPagesError("Add pages error in route: ", e)
 
@@ -275,8 +281,10 @@ class FletEasy(FletEasyX):
         share_data: bool = False,
         protected_route: bool = False,
         custom_params: Dict[str, Any] = None,
-        middleware: Middleware = None,
-    ):
+        middleware: Optional[
+            List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+        ] = None,
+    ) -> Callable:
         """Decorator to add a new page to the app, you need the following parameters:
         * route: text string of the url, for example(`'/FletEasy'`).
         * `title` : Define the title of the page. (optional).
@@ -422,7 +430,6 @@ class FletEasy(FletEasyX):
         ```
         """
         self._view_data = func
-        return func
 
     def config(self, func: Callable[[Datasy], None]):
         """Decorator to add a custom configuration to the app:
@@ -450,7 +457,6 @@ class FletEasy(FletEasyX):
         ```
         """
         self._view_config = func
-        return func
 
     def login(self, func: Callable[[Datasy], bool]):
         """Decorator to add a login configuration to the app (protected_route):
@@ -475,7 +481,6 @@ class FletEasy(FletEasyX):
         ```
         """
         self._config_login = func
-        return func
 
     def config_event_handler(self, func: Callable[[Datasy], None]):
         """Decorator to add charter event settings -> https://flet.dev/docs/controls/page#events
@@ -492,7 +497,6 @@ class FletEasy(FletEasyX):
         """
 
         self._config_event = func
-        return func
 
     def add_routes(self, add_views: List[Pagesy]):
         """-> Add routes without the use of decorators.
