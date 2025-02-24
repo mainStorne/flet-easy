@@ -2,7 +2,6 @@ from collections import deque
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from flet_easy.datasy import Datasy
 from flet_easy.middleware import (
     Middleware,
     MiddlewareHandler,
@@ -55,14 +54,11 @@ class Pagesy:
         if len(self._middlewares_request) != 0:
             return True
 
-    def _process_middleware(
-        self, middleware: Union[MiddlewareRequest, MiddlewareHandler], data: Datasy
-    ) -> None:
+    def _process_middleware(self, middleware: Union[MiddlewareRequest, MiddlewareHandler]) -> None:
         """Process and validate middleware handlers."""
 
         if isinstance(middleware, type):
             if issubclass(middleware, MiddlewareRequest):
-                middleware.data = data
                 middleware_instance = middleware()
 
                 self._middlewares_request.append(middleware_instance)
@@ -74,7 +70,7 @@ class Pagesy:
         else:
             self.middleware.append(middleware)
 
-    def _check_middleware(self, middleware: Middleware, data: Datasy) -> None:
+    def _check_middleware(self, middleware: Middleware) -> None:
         if middleware is None and self.middleware is None:
             return
 
@@ -96,7 +92,7 @@ class Pagesy:
 
             for m in _middleware:
                 try:
-                    self._process_middleware(m, data)
+                    self._process_middleware(m)
 
                 except (TypeError, AssertionError) as e:
                     raise ValueError(f"Invalid middleware configuration: {str(e)}")
@@ -210,11 +206,11 @@ class AddPagesy:
 
         return decorator
 
-    def _add_pages(self, data: Datasy, route: Optional[str] = None) -> deque[Pagesy]:
+    def _add_pages(self, route: Optional[str] = None) -> deque[Pagesy]:
         """Add pages with optional route prefix override."""
 
         for page in self.__pages:
-            page._check_middleware(self.middleware, data)
+            page._check_middleware(self.middleware)
 
             if route:
                 page.route = route if page.route == "/" else route + page.route

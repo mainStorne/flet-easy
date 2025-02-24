@@ -268,9 +268,9 @@ class FletEasy(FletEasyX):
         try:
             for page in group_pages:
                 if self.__route_prefix:
-                    self._pages.extend(page._add_pages(self._data, self.__route_prefix))
+                    self._pages.extend(page._add_pages(self.__route_prefix))
                 else:
-                    self._pages.extend(page._add_pages(self._data))
+                    self._pages.extend(page._add_pages())
         except Exception as e:
             raise AddPagesError("Add pages error in route: ", e)
 
