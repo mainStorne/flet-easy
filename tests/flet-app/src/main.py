@@ -44,9 +44,21 @@ async def starting_page_two(data: fs.Datasy):
         return data.redirect("/login")
 
 
+# add class to middleware custom
+class CustomMiddlewareInit(fs.MiddlewareRequest):
+    def before_request(self):
+        print("-/// (app-root) Before request", self.data.history_routes)
+
+    def after_request(self):
+        print("-/// (app-root) After request")
+        if self.data.route == "/login":
+            self.data.page.title = "login-Middleware"
+            self.data.page.update()
+
+
 """ [If you have any problem - build Windows]
 Remove [print()] from Python if used in 'add_middleware' functions. """
-app.add_middleware([starting_page, starting_page_two])
+app.add_middleware(starting_page, starting_page_two, CustomMiddlewareInit)
 
 ConfigApp(app)
 

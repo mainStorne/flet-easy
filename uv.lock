@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.8"
 resolution-markers = [
     "python_full_version >= '3.9'",
@@ -429,7 +430,7 @@ wheels = [
 
 [[package]]
 name = "flet-easy"
-version = "0.2.9"
+version = "0.3.0.dev1"
 source = { editable = "." }
 
 [package.optional-dependencies]
@@ -468,7 +469,7 @@ test = [
     { name = "rsa" },
     { name = "ruff" },
     { name = "tortoise-orm", version = "0.23.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "tortoise-orm", version = "0.24.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "tortoise-orm", version = "0.24.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
 
 [package.metadata]
@@ -484,9 +485,9 @@ requires-dist = [
     { name = "rsa", marker = "extra == 'all'", specifier = ">=4.9" },
     { name = "rsa", marker = "extra == 'jwt'", specifier = ">=4.9" },
 ]
+provides-extras = ["all", "jwt", "cli"]
 
 [package.metadata.requires-dev]
-dev = []
 docs = [
     { name = "mike", specifier = ">=2.0.0" },
     { name = "mkdocs-material", specifier = ">=9.5.17" },
@@ -1757,7 +1758,7 @@ wheels = [
 
 [[package]]
 name = "tortoise-orm"
-version = "0.24.0"
+version = "0.24.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.9'",
@@ -1768,9 +1769,9 @@ dependencies = [
     { name = "pypika-tortoise", version = "0.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pytz", marker = "python_full_version >= '3.9'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/81/973b629f8a70fc928343f4f8be6121023b6c6f0ee0ae45695955db82af47/tortoise_orm-0.24.0.tar.gz", hash = "sha256:ae0704a93ea27931724fc899e57268c8081afce3b32b110b00037ec206553e7d", size = 143958 }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/06/16af3d8e2a0c3fda98cc399823ad8b01bb9de0f54498bd60ef68b32b3da5/tortoise_orm-0.24.1.tar.gz", hash = "sha256:b9fd34133418d2cd3f4ac3df37a096b9a65754d06b08da0c56174b84fced875c", size = 144340 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/88/313395d3ae15f24b18496c4f8077404ee0336eea2a9c648466c406f053b3/tortoise_orm-0.24.0-py3-none-any.whl", hash = "sha256:ee3b72b226767293b24c5c4906ae5f027d7cc84496cd503352c918564b4fd687", size = 164094 },
+    { url = "https://files.pythonhosted.org/packages/a0/78/f12571d48ca9e58755c4fbab5080e66bba588f786a6c7f4fbf0360c4a04a/tortoise_orm-0.24.1-py3-none-any.whl", hash = "sha256:5ad15c516178cd5997c0f052207bb28d72e91abcae5eb039e1da1c3d24c5ae99", size = 165653 },
 ]
 
 [[package]]

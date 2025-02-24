@@ -2,7 +2,7 @@ import re
 from collections import deque
 from inspect import iscoroutinefunction
 from re import Pattern, compile, escape
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent, View, ViewPopEvent
 
@@ -45,6 +45,7 @@ class FletEasyX:
         self._config_login: Callable[[Datasy], bool] = None
         self._view_config: Callable[[Datasy], None] = None
         self._config_event: Callable[[Datasy], None] = None
+        self._middlewares_after: Optional[List[MiddlewareRequest]] = None
         self.__pagesy: Pagesy = None
         self._middlewares: Middleware = None
 
@@ -181,6 +182,10 @@ class FletEasyX:
         self.__page.views.append(view)
         self._data.history_routes.append(route)
         self.__page.update()
+
+        if self._middlewares_after:
+            for middleware in self._middlewares_after:
+                self.__check_async(middleware.after_request)
 
         if pagesy._valid_middlewares_request():
             for middleware in pagesy._middlewares_request:

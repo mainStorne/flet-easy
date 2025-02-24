@@ -7,10 +7,10 @@ from flet_easy.extra import Redirect
 
 
 class MiddlewareRequest:
-    data: Datasy = None
+    _data: Datasy = None
 
     def __init__(self):
-        self.data = MiddlewareRequest.data
+        self.data = MiddlewareRequest._data
 
     def before_request(self):
         pass

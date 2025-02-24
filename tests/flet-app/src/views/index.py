@@ -7,6 +7,7 @@ import flet_easy as fs
 # add class to middleware custom
 class CustomMiddleware(fs.MiddlewareRequest):
     def __init__(self):
+        super().__init__()
         self.route = self.data.page.route
 
     def before_request(self):

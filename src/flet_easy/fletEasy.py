@@ -1,4 +1,4 @@
-from flet_easy.exceptions import AddPagesError, FletEasyError
+from flet_easy.exceptions import AddPagesError, FletEasyError, MidlewareError
 
 try:
     from flet import AppView, Page, WebRenderer, app
@@ -9,12 +9,11 @@ except ImportError:
 
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from warnings import warn
 
 from flet_easy.auto_route import automatic_routing
 from flet_easy.datasy import Datasy
-from flet_easy.extra import Redirect
 from flet_easy.extrasJwt import SecretKey
 from flet_easy.inheritance import Viewsy
 from flet_easy.middleware import MiddlewareHandler, MiddlewareRequest
@@ -151,6 +150,9 @@ class FletEasy(FletEasyX):
             secret_key=secret_key,
             auto_logout=auto_logout,
         )
+
+        # add data to middleware request
+        MiddlewareRequest._data = self._data
 
     # -------------------------------------------------------------------
     def __pre_config(self, page: Page):
@@ -524,6 +526,36 @@ class FletEasy(FletEasyX):
 
             self._pages.append(page)
 
-    def add_middleware(self, middleware: List[Callable[[Datasy], Optional[Redirect]]]):
-        """The function that will act as middleware will receive as a single mandatory parameter `data : Datasy` and its structure or content may vary depending on the context and the specific requirements of the middleware."""
-        self._middlewares = middleware
+    def add_middleware(
+        self,
+        *middleware: Optional[
+            Tuple[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
+        ],
+    ):
+        """
+        You can add a list of elements as classes inherited from `fs.MiddlewareRequest` or functions that receive `data:fs.Datasy` as a parameter. Or you can add them individually.
+
+        **More info:** https://daxexs.github.io/flet-easy/latest/middleware/#general-application
+        """
+        try:
+            middleware = middleware[0] if isinstance(middleware[0], list) else middleware
+            self._middlewares_after = []
+            self._middlewares = []
+
+            for m in middleware:
+                if isinstance(m, type):
+                    if issubclass(m, MiddlewareRequest):
+                        middleware_instance = m()
+                        self._middlewares.append(middleware_instance)
+                        self._middlewares_after.append(middleware_instance)
+                    else:
+                        raise TypeError(
+                            f"Class '{m.__name__}' must inherit from MiddlewareRequest class",
+                        )
+                else:
+                    self._middlewares.append(m)
+        except Exception as e:
+            raise MidlewareError(
+                "You are not adding any midleware but you are using the 'add_middleware' method:",
+                e,
+            )
