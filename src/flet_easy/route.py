@@ -2,12 +2,12 @@ import re
 from collections import deque
 from inspect import iscoroutinefunction
 from re import Pattern, compile, escape
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent, View, ViewPopEvent
 
 from flet_easy.datasy import Datasy
-from flet_easy.exceptions import FunctionError, LoginRequiredError, MidlewareError, RouteError
+from flet_easy.exceptions import LoginRequiredError, MidlewareError, RouteError
 from flet_easy.extra import TYPE_PATTERNS, Msg, Redirect
 from flet_easy.inheritance import Keyboardsy, Resizesy, Viewsy
 from flet_easy.middleware import Middleware
@@ -37,6 +37,7 @@ class FletEasyX:
         self.__on_Keyboard = on_Keyboard
 
         self._pages = deque()
+        self.__history_pages: Dict[str, View] = {}
         self.__view_404 = page_404_fs
 
         self.__page: Page = None
@@ -99,11 +100,11 @@ class FletEasyX:
     # ------------ [ configuration when initializing 'flet' ]
 
     def __check_async(
-        self, func: Callable[[Datasy | Page], Any], *args, result: bool = False, **kwargs
-    ):
+        self, func: Callable[[Union[Datasy, Page]], Any], *args, result: bool = False, **kwargs
+    ) -> Union[View, bool, None]:
         """Check if the function is async or not"""
         if func is None:
-            assert FunctionError("Function is None:", func)
+            return
 
         if iscoroutinefunction(func):
             res = self.__page.run_task(func, *args, **kwargs)
@@ -161,24 +162,28 @@ class FletEasyX:
 
     # ---------------------------[Route controller]-------------------------------------
 
-    def _view_append(self, route: str, pagesy: Pagesy):
+    def _view_append(self, route: str, pagesy: Pagesy) -> None:
         """Add a new page and update it."""
 
         # To make the page change faster.
         self.__page.views.clear()
 
-        # to show back icon when using appBar.
-        if not pagesy.clear and len(self._data.history_routes) > 0:
-            self.__page.views.append(View())
+        view = self.__history_pages.get(route)
 
-        # Add View to the page.
-        if callable(pagesy.view) and not isinstance(pagesy.view, type):
-            view = self.__check_async(pagesy.view, self._data, **self._data.url_params, result=True)
-        elif isinstance(pagesy.view, type):
-            view_class = pagesy.view(self._data, **self._data.url_params)
-            view = self.__check_async(view_class.build, result=True)
+        if view is None:
+            if callable(pagesy.view) and not isinstance(pagesy.view, type):
+                view = self.__check_async(
+                    pagesy.view, self._data, **self._data.url_params, result=True
+                )
+            elif isinstance(pagesy.view, type):
+                view_class = pagesy.view(self._data, **self._data.url_params)
+                view = self.__check_async(view_class.build, result=True)
 
-        view.route = route
+            view.route = route
+
+            if pagesy.cache:
+                self.__history_pages[route] = view
+
         self.__page.views.append(view)
         self._data.history_routes.append(route)
         self.__page.update()

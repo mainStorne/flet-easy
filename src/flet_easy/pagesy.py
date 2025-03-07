@@ -20,6 +20,7 @@ class Pagesy:
     * `protected_route`: Protects the route of the page, according to the configuration of the `login` decorator of the `FletEasy` class. (optional)
     * `custom_params`: To add validation of parameters in the custom url using a list, where the key is the name of the parameter validation and the value is the custom function that must report a boolean value.
     * `middleware` : It acts as an intermediary between different software components, intercepting and processing requests and responses. They allow adding functionalities to an application in a flexible and modular way. (optional)
+    * `cache`: Boolean that preserves page state when navigating. Controls retain their values instead of resetting. (Optional)
 
     Example:
     ```python
@@ -39,6 +40,7 @@ class Pagesy:
         middleware: Optional[
             List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
         ] = None,
+        cache: bool = False,
     ):
         self.route = route
         self.view = view
@@ -48,6 +50,7 @@ class Pagesy:
         self.protected_route = protected_route
         self.custom_params = custom_params
         self.middleware = middleware
+        self.cache: bool = cache
         self._middlewares_request: deque[MiddlewareRequest] = deque()
 
     def _valid_middlewares_request(self) -> bool:
@@ -182,6 +185,7 @@ class AddPagesy:
         middleware: Optional[
             List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
         ] = None,
+        cache: bool = False,
     ) -> Callable:
         """Decorator for adding pages with configuration."""
 
@@ -200,6 +204,7 @@ class AddPagesy:
                     protected_route=protected_route,
                     custom_params=custom_params,
                     middleware=middleware,
+                    cache=cache,
                 )
             )
             return wrapper

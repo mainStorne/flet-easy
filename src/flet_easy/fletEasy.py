@@ -31,9 +31,10 @@ def page(
     middleware: Optional[
         List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
     ] = None,
+    cache: bool = False,
 ):
     return FletEasy.page(
-        route, title, page_clear, share_data, protected_route, custom_params, middleware
+        route, title, page_clear, share_data, protected_route, custom_params, middleware, cache
     )
 
 
@@ -250,6 +251,7 @@ class FletEasy(FletEasyX):
                         protected_route=data.get("protected_route"),
                         custom_params=data.get("custom_params"),
                         middleware=data.get("middleware"),
+                        cache=data.get("cache"),
                     )
                 )
             return wrapper
@@ -286,6 +288,7 @@ class FletEasy(FletEasyX):
         middleware: Optional[
             List[MiddlewareHandler | MiddlewareRequest] | MiddlewareHandler | MiddlewareRequest
         ] = None,
+        cache: bool = False,
     ) -> Callable:
         """Decorator to add a new page to the app, you need the following parameters:
         * route: text string of the url, for example(`'/FletEasy'`).
@@ -295,6 +298,7 @@ class FletEasy(FletEasyX):
         * protected_route: Protects the route of the page, according to the configuration of the `login` decorator of the `FletEasy` class. (optional)
         * custom_params: To add validation of parameters in the custom url using a list, where the key is the name of the parameter validation and the value is the custom function that must report a boolean value.
         * `middleware` : It acts as an intermediary between different software components, intercepting and processing requests and responses. They allow adding functionalities to an application in a flexible and modular way. (optional)
+        * `cache`: Boolean that preserves page state when navigating. Controls retain their values instead of resetting. (Optional)
 
         -> The decorated function must receive a parameter, for example `data:fs.Datasy`.
 
@@ -328,6 +332,7 @@ class FletEasy(FletEasyX):
             "protected_route": protected_route,
             "custom_params": custom_params,
             "middleware": middleware,
+            "cache": cache,
         }
         return cls.__decorator(cls.__self, "page", data)
 
