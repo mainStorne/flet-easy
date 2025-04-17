@@ -1,6 +1,6 @@
 [project]
 name = "flet-easy"
-version = "0.3.0.dev1"
+version = "0.3.0.dev4"
 description = "⚡Flet-Easy is a user-friendly add-on package for Flet, offering a cleaner code structure with numerous customizable features like JWT, routers, decorators, middleware and more."
 authors = [{ name = "Daxexs", email = "Daxexsdev@gmail.com" }]
 
@@ -68,5 +68,7 @@ test = [
     "pytest>=8.3.4",
     "pyjwt>=2.0.0",
     "rsa>=4.9",
+    "sqlmodel>=0.0.24",
+    "pyinstrument>=5.0.1",
 ]
 docs = ["mkdocs-material>=9.5.17", "mike>=2.0.0"]

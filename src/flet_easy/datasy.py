@@ -1,8 +1,8 @@
 from collections import deque
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Tuple
 
-from flet import Page
+from flet import Control, ControlEvent, Page
 
 from flet_easy.exceptions import LoginError
 from flet_easy.extra import Msg, Redirect
@@ -42,6 +42,7 @@ class Datasy:
     * `login` : method to create sessions of all sections in the browser (client storage), requires as parameters the key and the value, the same used in the `page.client_storage.set` method.
     * `go` : `go`: Method to change the application path, supports url redirections.
     * `go_back` : Method to go back to the previous route.
+    * `go_navigation_bar` : Handles navigation bar changes. Use this method in the on_change event of 'ft.NavigationBar' or 'ft.CupertinoNavigationBar' controls.
     * `history_routes` : Get the history of the routes.
     * `route` : route provided by the route event, it is useful when using middlewares to check if the route is assecible.
     * `redirect` : To redirect to a path before the page loads, it is used in middleware.
@@ -55,7 +56,7 @@ class Datasy:
         secret_key: str,
         auto_logout: bool,
         page_on_keyboard: Keyboardsy,
-        go: Callable[[str], None] = None,
+        go: Callable[[str, int], None] = None,
     ) -> None:
         self.__page: Page = None
         self.__url_params: Dict[str, Any] = None
@@ -68,7 +69,8 @@ class Datasy:
         self.__on_resize: Resizesy = None
         self.__route: str = None
         self.__go = go
-        self.__history_routes: deque[str] = deque()
+        self.__history_routes: deque[Tuple[str, int]] = deque()
+        self._dynamic_control: Dict[str, Tuple[Control, Callable[[Control], None]]] = {}
 
         self.__secret_key: SecretKey = secret_key
         self.__auto_logout: bool = auto_logout
@@ -88,10 +90,6 @@ class Datasy:
     @property
     def history_routes(self):
         return self.__history_routes
-
-    @history_routes.setter
-    def history_routes(self, history_routes: deque[str]):
-        self.__history_routes = history_routes
 
     @property
     def url_params(self):
@@ -365,17 +363,37 @@ class Datasy:
         """To change the application path, it is important for better validation to avoid using `page.go()`."""
         return lambda _=None: self.__go(route)
 
+    def go_navigation_bar(self, e: ControlEvent) -> None:
+        """Handles navigation bar changes. Use this method in the on_change event of
+        'ft.NavigationBar' or 'ft.CupertinoNavigationBar' controls."""
+        self.__go(e.control.selected_index)
+
     def redirect(self, route: str):
         """Useful if you do not want to access a route that has already been sent."""
         return Redirect(route)
 
-    def go_back(self):
+    def go_back(self) -> Callable[[ControlEvent], None]:
         """Go back to the previous route."""
-        return lambda _=None: (
-            (self.history_routes.pop(), self.__go(self.history_routes.pop()))
-            if len(self.history_routes) > 1
-            else (print("-> I can't go back! There is no route history."), None)
-        )
+
+        def go_back_func():
+            if len(self.history_routes) > 1:
+                self.history_routes.pop()
+                route, index = self.history_routes.pop()
+                if index is not None:
+                    self.view.navigation_bar.selected_index = index
+
+                if len(self.history_routes) == 0:
+                    self.page.views.clear()
+
+                self.__go(route)
+            else:
+                print("-> I can't go back! there is no history. ")
+
+        return lambda _=None: go_back_func()
+
+    def dynamic_control(self, control: Control, func_update: Callable[[Control], None]) -> None:
+        """Adds dynamic control to the page."""
+        self._dynamic_control[self.page.route] = (control, func_update)
 
 
 def evaluate_secret_key(data: Datasy):

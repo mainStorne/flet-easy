@@ -126,6 +126,20 @@ class FletEasy(FletEasyX):
     """
 
     __self = None
+    __slots__ = (
+        "__route_prefix",
+        "__path_views",
+        "__pagesys",
+        "_data",
+        "_pages",
+        "_page_404",
+        "_view_data",
+        "_view_config",
+        "_config_login",
+        "_config_event",
+        "_middlewares",
+        "_middlewares_after",
+    )
 
     def __init__(
         self,
@@ -155,13 +169,15 @@ class FletEasy(FletEasyX):
         # add data to middleware request
         MiddlewareRequest._data = self._data
 
+        self.__pagesys = automatic_routing(self.__path_views) if self.__path_views else None
+
     # -------------------------------------------------------------------
     def __pre_config(self, page: Page):
         """config before run"""
         self._add_configuration_start(page)
 
-        if self.__path_views is not None:
-            self.add_pages(automatic_routing(self.__path_views))
+        if self.__pagesys:
+            self.add_pages(self.__pagesys)
 
         self._run()
 
@@ -246,6 +262,7 @@ class FletEasy(FletEasyX):
                         route=route,
                         view=func,
                         title=data.get("title"),
+                        index=data.get("index"),
                         clear=data.get("page_clear"),
                         share_data=data.get("share_data"),
                         protected_route=data.get("protected_route"),
@@ -281,6 +298,7 @@ class FletEasy(FletEasyX):
         cls,
         route: str,
         title: str = None,
+        index: Optional[int] = None,
         page_clear: bool = False,
         share_data: bool = False,
         protected_route: bool = False,
@@ -293,6 +311,7 @@ class FletEasy(FletEasyX):
         """Decorator to add a new page to the app, you need the following parameters:
         * route: text string of the url, for example(`'/FletEasy'`).
         * `title` : Define the title of the page. (optional).
+        * `index` : Define the index of the page, use in controls like `ft.CupertinoNavigationBar` or `ft.NavigationBar`. (optional)
         * clear: Removes the pages from the `page.views` list of flet. (optional)
         * `share_data` : It is a boolean value, which is useful if you want to share data between pages, in a more restricted way. (optional)
         * protected_route: Protects the route of the page, according to the configuration of the `login` decorator of the `FletEasy` class. (optional)
@@ -327,6 +346,7 @@ class FletEasy(FletEasyX):
         data = {
             "route": route,
             "title": title,
+            "index": index,
             "page_clear": page_clear,
             "share_data": share_data,
             "protected_route": protected_route,

@@ -15,6 +15,7 @@ class Pagesy:
     * `route`: text string of the url, for example(`'/task'`).
     * `view`: Stores the page function.
     * `title` : Define the title of the page.
+    * `index` : Define the index of the page, use in controls like `ft.NavigationBar` and `ft.CupertinoNavigationBar`.
     * `clear`: Removes the pages from the `page.views` list of flet. (optional)
     * `share_data` : It is a boolean value, which is useful if you want to share data between pages, in a more restricted way. (optional)
     * `protected_route`: Protects the route of the page, according to the configuration of the `login` decorator of the `FletEasy` class. (optional)
@@ -33,6 +34,7 @@ class Pagesy:
         route: str,
         view: ViewHandler,
         title: Optional[str] = None,
+        index: Optional[int] = None,
         clear: bool = False,
         share_data: bool = False,
         protected_route: bool = False,
@@ -45,6 +47,7 @@ class Pagesy:
         self.route = route
         self.view = view
         self.title = title
+        self.index = index
         self.clear = clear
         self.share_data = share_data
         self.protected_route = protected_route
@@ -178,6 +181,7 @@ class AddPagesy:
         self,
         route: str,
         title: Optional[str] = None,
+        index: Optional[int] = None,
         page_clear: bool = False,
         share_data: bool = False,
         protected_route: bool = False,
@@ -199,6 +203,7 @@ class AddPagesy:
                     route=self.__build_route(route),
                     view=func,
                     title=title,
+                    index=index,
                     clear=page_clear,
                     share_data=share_data,
                     protected_route=protected_route,
