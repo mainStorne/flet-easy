@@ -382,9 +382,6 @@ class Datasy:
                 if index is not None:
                     self.view.navigation_bar.selected_index = index
 
-                if len(self.history_routes) == 0:
-                    self.page.views.clear()
-
                 self.__go(route)
             else:
                 print("-> I can't go back! there is no history. ")

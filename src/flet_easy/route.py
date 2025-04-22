@@ -39,6 +39,7 @@ class FletEasyX:
         self._pages = deque()
         self.__history_pages: Dict[str, View] = {}
         self.__view_404 = page_404_fs
+        self.__automatically_imply_leading = False
 
         self.__page: Page = None
         self._page_404: Pagesy = None
@@ -123,13 +124,17 @@ class FletEasyX:
         """Add the `View` configuration, to reuse on every page."""
         self._data.view = self.__check_async(self._view_data, self._data, result=True)
 
+        if self._data.view:
+            self.__automatically_imply_leading = getattr(
+                self._data.view.appbar, "automatically_imply_leading", True
+            )
+
         if self.__route_login is not None:
             self._data._create_login()
 
     def _add_configuration_start(self, page: Page):
         """Add general settings to the pages."""
         self.__page = page
-        self.__page.views.clear()
         self.__config_datasy()
 
         """ Add view configuration """
@@ -165,6 +170,8 @@ class FletEasyX:
         """Add a new page and update it."""
 
         # To make the page change faster.
+        self.__manage_dynamic_appbar(route)
+
         if len(self.__page.views) > 1:
             self.__page.views.pop()
 
@@ -200,6 +207,21 @@ class FletEasyX:
         if pagesy._valid_middlewares_request():
             for middleware in pagesy._middlewares_request:
                 self.__check_async(middleware.after_request)
+
+    def __manage_dynamic_appbar(self, route: str) -> None:
+        """Manage the appbar automatically_imply_leading parameter"""
+        if route == self.__route_init:
+            self._data.history_routes.clear()
+            appbar = getattr(self._data.view, "appbar", None)
+
+            if appbar and getattr(appbar, "automatically_imply_leading", None):
+                appbar.automatically_imply_leading = False
+
+        elif self.__automatically_imply_leading:
+            appbar = getattr(self._data.view, "appbar", None)
+
+            if appbar:
+                appbar.automatically_imply_leading = True
 
     def __reload_datasy(
         self,
