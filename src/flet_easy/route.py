@@ -80,9 +80,10 @@ class FletEasyX:
             self.__pagesy = None
 
     def __view_pop(self, e):
-        if len(self.__data.history_routes) > 1:
-            self.__data.history_routes.pop()
-            self._go(self.__data.history_routes.pop())
+        pass
+        # self.__page.views.pop()
+        # top_view = self.__page.views[-1]
+        # self.__page.go(top_view.route)
 
     async def __on_keyboard(self, e: KeyboardEvent):
         self.__page_on_keyboard.call = e
@@ -146,12 +147,8 @@ class FletEasyX:
 
     def _view_append(self, route: str, pagesy: Pagesy):
         """Add a new page and update it."""
-
         self.__page.views.clear()
-
-        if not pagesy.clear and len(self.__data.history_routes) > 0:
-            self.__page.views.append(View())
-
+        self.__page.views.append(View())
         if callable(pagesy.view) and not isinstance(pagesy.view, type):
             view = (
                 self.__page.run_task(pagesy.view, self.__data, **self.__data.url_params).result()
@@ -167,7 +164,6 @@ class FletEasyX:
             )
         view.route = route
         self.__page.views.append(view)
-        self.__data.history_routes.append(route)
         self.__page.update()
 
     def __reload_datasy(
@@ -247,9 +243,9 @@ class FletEasyX:
                 pg_404 = False
                 try:
                     if page.protected_route:
-                        assert (
-                            self.__route_login is not None
-                        ), "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
+                        assert self.__route_login is not None, (
+                            "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
+                        )
 
                         if iscoroutinefunction(self.__config_login):
                             try:
