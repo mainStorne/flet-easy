@@ -247,9 +247,9 @@ class FletEasyX:
                 pg_404 = False
                 try:
                     if page.protected_route:
-                        assert (
-                            self.__route_login is not None
-                        ), "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
+                        assert self.__route_login is not None, (
+                            "Configure the route of the login page, in the Flet-Easy class in the parameter (route_login)"
+                        )
 
                         if iscoroutinefunction(self.__config_login):
                             try:
