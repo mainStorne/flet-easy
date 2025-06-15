@@ -27,7 +27,8 @@ class Formsy:
                 field.validate()
                 context[field.name] = field.value
         except FormFieldInvalidError:
-            self.view.page.update()
             return
+        finally:
+            self.view.page.update()
 
         await self._valid_hook(context)
