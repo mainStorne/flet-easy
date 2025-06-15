@@ -1,4 +1,5 @@
-from collections.abc import Awaitable, Coroutine
+from collections.abc import Awaitable
+from typing import Callable
 
 import flet as ft
 
@@ -8,7 +9,7 @@ from flet_easy.forms.fields import ButtonFieldsy, Fieldsy, FormFieldInvalidError
 class Formsy:
     def __init__(
         self,
-        valid_hook: Coroutine[Awaitable[dict]],
+        valid_hook: Callable[[dict], Awaitable[dict]],
         fields: list[Fieldsy],
         btn_field: ButtonFieldsy,
     ):

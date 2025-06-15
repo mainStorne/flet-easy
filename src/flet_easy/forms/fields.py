@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
 
 import flet as ft
@@ -19,13 +19,13 @@ class Fieldsy(ABC):
         view,
         ref: ft.Ref,
         error_text: str = "",
-        rules: list[RuleCallable] = [],
+        rules: list[RuleCallable] = None,
     ):
         self.name = name
         self.view = view
         self.error_text = error_text
         self.ref = ref
-        self.rules = rules
+        self.rules = [] if not rules else rules
 
         super().__init__()
 
@@ -53,7 +53,7 @@ class Fieldsy(ABC):
 
 
 class BaseTypeFieldsy(Fieldsy):
-    def __init__(self, name, view, ref, value=None, error_text="", rules=[]):
+    def __init__(self, name, view, ref, value=None, error_text="", rules=None):
         self._value = value
         super().__init__(name, view, ref, error_text, rules)
 
@@ -67,7 +67,9 @@ class BaseTypeFieldsy(Fieldsy):
 
 
 class TextFieldsy(Fieldsy):
-    def __init__(self, name, label: str, value=None, error_text="", rules=[], **kwargs):
+    def __init__(
+        self, name, label: str, value=None, error_text="", rules=None, **kwargs
+    ):
         ref = ft.Ref[ft.TextField]()
         super().__init__(
             name,
@@ -106,6 +108,7 @@ class DropDownFieldsy(Fieldsy):
         options: list[DropDownOption],
         value=None,
         error_text="",
+        rules=None,
     ):
         self._value = value
         ref = ft.Ref[ft.Dropdown]()
@@ -116,10 +119,10 @@ class DropDownFieldsy(Fieldsy):
                 leading_icon=ft.Icon(icon, color=ft.Colors.BLACK),
                 label_style=ft.TextStyle(color=ft.Colors.BLACK),
                 text_style=ft.TextStyle(color=ft.Colors.BLACK),
-                label_text=label,
+                label=label,
                 value=value,
                 ref=ref,
-                on_dropdown_change=self._handle_dropdown_click,
+                on_change=self._handle_dropdown_click,
                 expand=True,
                 options=[
                     ft.DropdownOption(
@@ -130,9 +133,13 @@ class DropDownFieldsy(Fieldsy):
                             padding=0,
                             shape=ft.ContinuousRectangleBorder(),
                         ),
-                        text_style=ft.TextStyle(color=ft.Colors.BLACK),
+                        text_style=ft.TextStyle(
+                            color=ft.Colors.BLACK, weight=ft.FontWeight.BOLD
+                        ),
                         content=ft.Text(
-                            value=option.text, text_align=ft.TextAlign.CENTER
+                            value=option.text,
+                            text_align=ft.TextAlign.CENTER,
+                            color=ft.Colors.BLACK,
                         ),
                     )
                     for option in options
@@ -140,17 +147,23 @@ class DropDownFieldsy(Fieldsy):
             ),
             error_text=error_text,
             ref=ref,
+            rules=rules,
         )
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        self._value = val
 
     def _handle_dropdown_click(self, e):
         self.value = int(e.control.value)
 
     def _validate_field(self):
         if not self.value:
-            self.ref.current.error_text = self.error_text
-            raise FormFieldInvalidError
-        else:
-            self.ref.current.error_text = ""
+            return
 
 
 class ButtonFieldsy(ft.Button):
@@ -158,7 +171,9 @@ class ButtonFieldsy(ft.Button):
 
 
 class NumberFieldsy(BaseTypeFieldsy):
-    def __init__(self, name, label: str, value=None, error_text="", rules=[], **kwargs):
+    def __init__(
+        self, name, label: str, value=None, error_text="", rules=None, **kwargs
+    ):
         ref = ft.Ref[ft.TextField]()
         super().__init__(
             name,
@@ -188,7 +203,9 @@ class NumberFieldsy(BaseTypeFieldsy):
 
 
 class DecimalFieldsy(BaseTypeFieldsy):
-    def __init__(self, name, label: str, value=None, error_text="", rules=[], **kwargs):
+    def __init__(
+        self, name, label: str, value=None, error_text="", rules=None, **kwargs
+    ):
         ref = ft.Ref[ft.TextField]()
         super().__init__(
             name,
@@ -210,7 +227,7 @@ class DecimalFieldsy(BaseTypeFieldsy):
             return
         try:
             self.value = Decimal(self.ref.current.value)
-        except:  # noqa: E722
+        except InvalidOperation:
             self.ref.current.error_text = self.error_text
             raise FormFieldInvalidError
         else:

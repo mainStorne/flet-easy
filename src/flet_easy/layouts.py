@@ -25,9 +25,6 @@ class BaseLayout:
 
 
 class CenteredLayout(BaseLayout):
-    def __init__(self, datasy: Datasy):
-        self._datasy = datasy
-
     async def build(self, control: ft.Control):
         return await super().build(
             control,
