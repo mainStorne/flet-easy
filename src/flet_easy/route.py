@@ -3,7 +3,7 @@ from inspect import iscoroutinefunction
 from re import Pattern, compile, escape
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent, View
+from flet import ControlEvent, KeyboardEvent, Page, RouteChangeEvent
 
 from flet_easy.datasy import Datasy
 from flet_easy.exceptions import LoginRequiredError, MidlewareError, RouteError
@@ -70,6 +70,9 @@ class FletEasyX:
 
     # ----------- Supports async
     def __route_change(self, e: RouteChangeEvent):
+        """Triggers when route is changed
+        For more information see https://flet.dev/docs/getting-started/navigation-and-routing
+        """
         if self.__pagesy is None:
             if e.route == "/" and self.__route_init != "/":
                 return self.__page.go(self.__route_init)
@@ -80,9 +83,14 @@ class FletEasyX:
             self.__pagesy = None
 
     def __view_pop(self, e):
-        if len(self.__data.history_routes) > 1:
-            self.__data.history_routes.pop()
-            self._go(self.__data.history_routes.pop())
+        """Triggers when user go back through the back button in the flet
+        For more information see https://flet.dev/docs/getting-started/navigation-and-routing
+        """
+        # TODO this triggers and in the web page occasionally
+        if len(self.__page.views) == 1:
+            return
+        self.__page.views.pop()
+        self.__page.update()
 
     async def __on_keyboard(self, e: KeyboardEvent):
         self.__page_on_keyboard.call = e
@@ -146,11 +154,7 @@ class FletEasyX:
 
     def _view_append(self, route: str, pagesy: Pagesy):
         """Add a new page and update it."""
-
         self.__page.views.clear()
-
-        if not pagesy.clear and len(self.__data.history_routes) > 0:
-            self.__page.views.append(View())
 
         if callable(pagesy.view) and not isinstance(pagesy.view, type):
             view = (
@@ -167,7 +171,6 @@ class FletEasyX:
             )
         view.route = route
         self.__page.views.append(view)
-        self.__data.history_routes.append(route)
         self.__page.update()
 
     def __reload_datasy(

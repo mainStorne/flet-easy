@@ -55,4 +55,5 @@ ConfigApp(app)
 
 """ [If you have any problem - build web]
 Use ft.app(target=app.get_app()) when compiling web statica. """
+print("start")
 app.run()

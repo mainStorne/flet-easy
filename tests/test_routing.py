@@ -1,9 +1,13 @@
 from typing import Any, Dict, Optional
+from unittest.mock import MagicMock
 from uuid import UUID
 
+import flet as ft
 import pytest
+from flet import RouteChangeEvent
 
 from flet_easy.route import FletEasyX
+from tests.conftest import app
 
 
 def custom_bool(value: str) -> Optional[bool]:
@@ -109,3 +113,22 @@ def test_none_cases(setup: tuple[Dict[str, Any], Any]) -> None:
     )
     assert verify_url("{id:int}", "/home") is None
     assert verify_url("/{id:int}/user", "/5x/user") is None
+
+
+def test_route_change():
+    page = MagicMock()
+    page.route = "/home"
+    page.views: list[ft.View] = []  # type: ignore
+    # page.
+    #         self.__page.on_route_change = self.__route_change
+    # self.__page.on_view_pop = self.__view_pop
+    app._FletEasy__run(page)
+    old_on_route_change = page.on_route_change
+
+    def on_route_change(e: RouteChangeEvent):
+        old_on_route_change(e)
+
+    page.on_route_change = on_route_change
+    page.on_route_change(RouteChangeEvent(route="/testy"))
+    page.on_route_change(RouteChangeEvent(route="/home"))
+    assert page.go.call_args("/testy")
